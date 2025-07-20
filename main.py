@@ -9,6 +9,6 @@ if __name__ == "__main__":
     parser.add_argument('--input', action='store', type=str, default='test_audio', help='dir for test audio')
     parser.add_argument('--output', action='store', type=str, default='result', help='dir for test result')
     args = parser.parse_args()
- 
+
     if args.test:
         Testcase.run_test(args)

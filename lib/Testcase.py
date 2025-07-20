@@ -1,6 +1,7 @@
 import os
 from lib.AudioData import AudioData
 from lib.Visualizer import Visualizer
+from lib.AudioFilter import AudioFilter, AudioNoise
 
 class Testcase:
     @staticmethod
@@ -10,21 +11,58 @@ class Testcase:
         # 1. Make sine
         input_audio = AudioData.from_sine(
             duration=3,
-            freq=100,
+            freq=10,
             rate=48000,
             width=4,
             channels=2,
         )
-        input_audio.save(f"{target_dir}/input.wav")
 
         # 2. Copy from input
         output_audio = input_audio.copy()
-        
-        # 3. Add noise
-        output_audio.add_dc_offset(offset_level=2000) \
-                    .add_pop_noise(target_sec=1.0) \
-                    #.add_clipping(gain=1.8) \
 
+        # 3. Add noise
+        output_audio.apply(AudioNoise.clipping, multiple=0.8) \
+                    .apply(AudioNoise.dc_offset, offset=output_audio.max_amp * 0.5) \
+                    .apply(AudioNoise.pop_noise, target_sec=1.0) \
+                    .apply(AudioNoise.pop_noise, target_sec=2.2, target_channel=[1],
+                           noise_level=output_audio.max_amp, noise_duration_samples=10)
+
+        # add normalized noise with 2% of max value
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioNoise.normalized_noise, noise_level=output_audio.max_amp * 0.02)
+
+        # add normalized noise with 20% of max data
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioNoise.normalized_noise, noise_level=output_audio.max_val * 0.2)
+
+        # audio cut noise
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioNoise.cut_noise, target_sec=1.0, target_channel=[0], noise_duration_samples=50)
+
+        # audio filter
+        input_audio= AudioData.from_multi_sine(
+            duration=3,
+            freqs=[100, 2000],
+            rate=48000,
+            width=4,
+            channels=2
+        )
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioFilter.freq_pass_filter, filter_type='low', cutoff_freq=500)
+
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioFilter.freq_pass_filter, filter_type='high', cutoff_freq=500)
+
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioFilter.band_pass_filter, low_cutoff=100, high_cutoff=500)
+
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioFilter.band_pass_filter, low_cutoff=500, high_cutoff=2000)
+
+        output_audio = input_audio.copy()
+        output_audio.apply(AudioFilter.band_stop_filter, low_cutoff=50, high_cutoff=1000)
+
+        input_audio.save(f"{target_dir}/input.wav")
         output_audio.save(f"{target_dir}/output.wav")
 
     @staticmethod
